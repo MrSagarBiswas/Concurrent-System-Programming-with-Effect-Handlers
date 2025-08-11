@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Presentation: Concurrent System Programming with Effect Handlers</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 5rem 1rem;
+            border-bottom: 1px solid #e2e8f0; /* slate-200 */
+        }
+        .slide:last-child {
+            border-bottom: none;
+        }
+        .animation-container {
+            position: relative;
+            height: 350px;
+            background-color: #f1f5f9; /* slate-100 */
+            border-radius: 0.75rem;
+            overflow: hidden;
+            border: 1px solid #e2e8f0; /* slate-200 */
+        }
+        .fiber, .os-thread, .event-loop, .signal {
+            position: absolute;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 1.2s ease-in-out; /* Even Slower transition */
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .fiber { background-color: #60a5fa; color: white; }
+        .os-thread { background-color: #4ade80; color: white; bottom: 1rem; left: 50%; transform: translateX(-50%); width: 90%; text-align: center; }
+        .event-loop { background-color: #facc15; color: #422006; bottom: 6rem; left: 50%; transform: translateX(-50%); width: 80%; text-align: center; }
+        .signal { background-color: #f87171; color: white; }
+        .code-block {
+            background-color: #1e293b; /* slate-800 */
+            color: #e2e8f0; /* slate-200 */
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: monospace;
+            white-space: pre-wrap;
+            font-size: 0.875rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .status-box {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+            backdrop-filter: blur(4px);
+            z-index: 10;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <main>
+        <!-- Title Slide -->
+        <section id="title" class="slide bg-white text-center">
+            <div class="max-w-4xl mx-auto">
+                <h1 class="text-4xl md:text-5xl font-bold text-slate-900 leading-tight">Concurrent System Programming with Effect Handlers</h1>
+                <p class="mt-6 text-lg text-slate-600">
+                    Stephen Dolan<sup>1</sup>, Spiros Eliopoulos<sup>3</sup>, Daniel Hillerström<sup>2</sup>, Anil Madhavapeddy<sup>1</sup>, KC Sivaramakrishnan<sup>1</sup>, and Leo White<sup>3</sup>
+                </p>
+                <p class="mt-2 text-md text-slate-500">
+                    <sup>1</sup>University of Cambridge, <sup>2</sup>The University of Edinburgh, <sup>3</sup>Jane Street Group
+                </p>
+                
+                <div class="mt-12">
+                    <p class="text-xl text-slate-800">Presented by Sagar Biswas</p>
+                    <p class="mt-2 text-md text-slate-500">12/07/2025</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Introduction -->
+        <section id="intro" class="slide">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">What are Algebraic Effect Handlers?</h2>
+                <p class="mt-4 text-lg text-slate-600">At their core, effect handlers are a powerful language feature for separating a program's logic from its operational details. They allow us to define custom "effects" and provide "handlers" that interpret these effects, leading to more modular and readable code.</p>
+                <div class="mt-6 grid md:grid-cols-2 gap-6">
+                    <div class="bg-white p-6 rounded-lg border border-slate-200">
+                        <h3 class="font-semibold text-slate-900">Direct-Style Code</h3>
+                        <p class="text-slate-600 mt-2">You write code that looks sequential and is easy to read, without complex callbacks or nested promises (often called "callback hell"). This makes debugging simpler, as you can rely on standard call stacks.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg border border-slate-200">
+                        <h3 class="font-semibold text-slate-900">Composable & Modular</h3>
+                        <p class="text-slate-600 mt-2">You can define your own effects and "handle" them differently depending on the context. This makes it possible to swap out a scheduler or testing framework without changing the application logic.</p>
+                    </div>
+                </div>
+                 <p class="mt-6 text-lg text-slate-600">Think of it like a `try...catch` block on steroids: you can catch any custom operation you can imagine, not just exceptions, and you can choose to resume the computation, change its result, or perform other actions.</p>
+            </div>
+        </section>
+        
+        <!-- Topic 1: Concurrency -->
+        <section id="concurrency-problem" class="slide bg-white">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">Problem 1: The Complexity of Concurrency</h2>
+                <p class="mt-4 text-lg text-slate-600">Traditional concurrency models often force developers into a choice between two bad options: heavyweight OS threads that don't scale, or complex, callback-based code that is hard to reason about.</p>
+                <ul class="mt-6 space-y-4 text-slate-600">
+                    <li class="flex items-start">
+                        <svg class="h-6 w-6 text-red-500 mr-3 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                        <span><strong class="text-slate-800">Callback Hell:</strong> Inverting the control flow with callbacks makes logic difficult to follow and debug. Error handling becomes a nightmare of nested `try-catch` blocks or separate error callbacks.</span>
+                    </li>
+                    <li class="flex items-start">
+                         <svg class="h-6 w-6 text-red-500 mr-3 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <span><strong class="text-slate-800">Monad Transformers:</strong> Solutions like monads can help, but often lead to complex type signatures and require specialized versions of common functions (`map` vs `mapM`), creating a "two-color function" problem.</span>
+                    </li>
+                </ul>
+            </div>
+        </section>
+        
+        <section id="concurrency-solution" class="slide">
+            <div class="max-w-4xl mx-auto w-full">
+                <h2 class="text-3xl font-bold text-slate-900 text-center">Solution: Concurrency as an Effect</h2>
+                <p class="mt-4 text-lg text-slate-600 text-center">Effect handlers allow us to abstract the entire mechanism of concurrency away from the application code. The application code simply states *what* it wants to do (`async`, `await`), and the scheduler handler decides *how* to do it. Below is the complete scheduler from the paper.</p>
+                <div class="code-block mt-6">(* A promise can be resolved with a value, an exception, or be waiting for a result.
+   If waiting, it holds a list of continuations (paused fibers) to resume later. *)
+type 'a promise = Done of 'a | Error of exn | Waiting of ('a, unit) continuation list
+type 'a promise_ref = 'a promise ref
+
+(* The main entry point. It sets up the scheduler and runs the initial computation. *)
+let run main v =
+  (* A simple FIFO queue for fibers that are ready to run. *)
+  let run_q = Queue.create () in
+  let enqueue f = Queue.push f run_q in
+  (* Pops the next fiber from the queue and runs it. *)
+  let run_next () =
+    if Queue.is_empty run_q then () (* No more work to do *)
+    else Queue.pop run_q ()
+  in
+  (* The core recursive function that drives the computation.
+     It's wrapped in an effect handler (the 'match' statement). *)
+  let rec fork : 'a 'b. 'a promise_ref -> ('b -> 'a) -> 'b -> unit =
+    fun p f v ->
+      match f v with
+      (* CASE 1: The fiber ran to completion successfully. *)
+      | v ->
+          let Waiting l = !p in (* Get the list of fibers waiting on this promise. *)
+          List.iter (fun k -> enqueue (fun () -> continue k v)) l; (* Resume them all. *)
+          p := Done v; (* Mark the promise as done. *)
+          run_next () (* Run the next fiber in the queue. *)
+      (* CASE 2: The fiber terminated with an exception. *)
+      | exception e ->
+          let Waiting l = !p in (* Get waiting fibers. *)
+          List.iter (fun k -> enqueue (fun () -> discontinue k e)) l; (* Resume them with the exception. *)
+          p := Error e; (* Mark the promise as failed. *)
+          run_next ()
+      (* CASE 3: An 'Async' effect was performed. *)
+      | effect (Async (f,v)) k ->
+          let p = ref (Waiting []) in (* Create a new promise for the new fiber. *)
+          enqueue (fun () -> continue k p); (* Immediately resume the original fiber with the new promise. *)
+          fork p f v (* Start the new fiber. *)
+      (* CASE 4: An 'Await' effect was performed. *)
+      | effect (Await p) k ->
+          (match !p with
+          | Done v -> continue k v (* Promise is already done, continue with value. *)
+          | Error e -> discontinue k e (* Promise already failed, raise the exception. *)
+          | Waiting l -> p := Waiting (k::l); run_next ()) (* Promise not ready. Pause fiber 'k' and run next. *)
+      (* CASE 5: A 'Yield' effect was performed. *)
+      | effect Yield k ->
+          enqueue (fun () -> continue k ()); (* Put the current fiber at the back of the queue. *)
+          run_next () (* Run the next fiber. *)
+  in
+  (* Kick off the whole process with the initial computation. *)
+  fork (ref (Waiting [])) main v</div>
+            </div>
+        </section>
+
+        <section id="concurrency" class="slide bg-white">
+            <div class="max-w-4xl mx-auto w-full">
+                <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Spawning and Awaiting Fibers</h3>
+                <p class="text-slate-600 mt-1 text-center">The code looks sequential, but the scheduler will interleave the execution of `task1` and `task2`.</p>
+                <div class="code-block mt-4">(* 1. Define effects *)
+effect Async : ('a -> 'b) -> 'b promise
+effect Await : 'a promise -> 'a
+effect Yield : unit -> unit
+
+(* 2. Wrap in helper functions *)
+let async f = perform (Async f)
+let await p = perform (Await p)
+let yield () = perform Yield
+
+(* 3. Write concurrent code *)
+(* This will become Fiber 1 in the visualization *)
+let task1 () =
+  print_endline "Task 1 starting";
+  yield (); (* give other tasks a chance to run *)
+  print_endline "Task 1 finishing"
+
+(* This will become Fiber 2 in the visualization *)
+let task2 () =
+  print_endline "Task 2 running"
+
+let main () =
+  let _promise1 = async task1 in
+  let _promise2 = async task2 in
+  () (* Fire and forget for this simple example *)
+
+(* 4. Run it with the scheduler *)
+let () = run main ()</div>
+            </div>
+        </section>
+        
+        <section class="slide">
+            <div class="max-w-4xl mx-auto w-full">
+                <h3 class="text-xl font-semibold text-slate-800 text-center">How It Works: Concurrency Visualization</h3>
+                <p class="text-slate-600 mt-1 text-center">Fibers are lightweight threads. The scheduler runs them on an OS thread. `await` or `yield` pauses a fiber without blocking others.</p>
+                <div class="animation-container mt-4" id="anim1-container">
+                    <div class="os-thread">OS Thread / Scheduler</div>
+                    <div class="status-box" id="anim1-status">Status: Idle</div>
+                </div>
+                <div class="mt-4 text-center">
+                    <button id="anim1-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Run Concurrency Animation</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 2: I/O -->
+        <section id="io-problem" class="slide bg-white">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">Problem 2: Blocking I/O</h2>
+                <p class="mt-4 text-lg text-slate-600">A core challenge in concurrent programming is handling I/O operations (like reading a file or a network socket) without freezing the entire application. If a user-level thread makes a traditional, blocking system call, the entire OS thread it's running on will halt, preventing any other user-level threads from making progress. This completely undermines the goal of concurrency.</p>
+            </div>
+        </section>
+
+        <section id="io-solution" class="slide">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">Solution: Non-Blocking I/O as an Effect</h2>
+                <p class="mt-4 text-lg text-slate-600">Instead of calling blocking OS functions directly, we `perform` an I/O effect. The scheduler's handler attempts the operation in a non-blocking way. If the OS says "not ready yet" (`EWOULDBLOCK`), the handler doesn't wait. It pauses the current fiber and schedules another one.</p>
+                 <div class="mt-6 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg">
+                    <p><strong class="font-semibold">The Result:</strong> The application code remains clean and direct, while the handler manages the complexity of non-blocking event loops (`epoll`, `kqueue`) under the hood. The program remains responsive and scalable.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="io" class="slide bg-white">
+            <div class="max-w-4xl mx-auto w-full">
+                <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Handling a "Blocking" Call</h3>
+                <p class="text-slate-600 mt-1 text-center">When `Accept` is performed, the handler tries the operation. If it would block, it pauses the fiber and runs something else.</p>
+                <div class="code-block mt-4">(* Define the I/O effect *)
+effect Accept : file_descr -> (file_descr * sockaddr)
+
+(* The handler logic for this effect. This would be added to our scheduler. *)
+| effect (Accept fd) k ->
+    (match Unix.accept fd with
+    | (newfd, sockaddr) ->
+        (* Success! The OS had a connection ready.
+           Continue the fiber immediately with the result. *)
+        continue k (newfd, sockaddr)
+    | exception Unix_error(EWOULDBLOCK, _, _) ->
+        (* It would block. Don't wait! *)
+        (* 1. Record that fiber 'k' is waiting on file descriptor 'fd'.
+              The event loop will watch 'fd' for readiness. *)
+        record_waiting fd k;
+        (* 2. Run the next available fiber from the queue. *)
+        run_next ()
+    )</div>
+            </div>
+        </section>
+        
+        <section class="slide">
+            <div class="max-w-4xl mx-auto w-full">
+                <h3 class="text-xl font-semibold text-slate-800 text-center">How It Works: I/O Visualization</h3>
+                 <p class="text-slate-600 mt-1 text-center">When a fiber performs a blocking I/O effect, the scheduler hands the work to a non-blocking event loop and runs other fibers.</p>
+                 <div class="animation-container mt-4" id="anim2-container">
+                    <div class="os-thread">OS Thread / Scheduler</div>
+                    <div class="event-loop">I/O Event Loop (e.g., epoll, kqueue)</div>
+                    <div class="status-box" id="anim2-status">Status: Idle</div>
+                </div>
+                <div class="mt-4 text-center">
+                    <button id="anim2-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Run I/O Animation</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Topic 3: Signals -->
+        <section id="signals-problem" class="slide bg-white">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">Problem 3: Resource Safety and Asynchronous Signals</h2>
+                <p class="mt-4 text-lg text-slate-600">Ensuring resources like file handles are always closed is difficult, especially when faced with asynchronous interruptions (e.g., Ctrl-C).</p>
+                <p class="mt-6 text-slate-800 font-medium">A naive approach leaks resources on any exception:</p>
+                <div class="code-block mt-2">let f = open_in "data.csv" in
+do_stuff_with f;
+close_in f</div>
+                <p class="mt-4 text-slate-600">A `try-finally` block helps with normal exceptions:</p>
+                <div class="code-block mt-2">let f = open_in "data.csv" in
+match do_stuff_with f with
+| () -> close_in f
+| exception e -> close_in f; raise e</div>
+                <p class="mt-4 text-slate-600 font-semibold text-red-600">But even this is not safe! If an asynchronous signal arrives between `open_in` and the `match` statement, the cleanup code is never reached, and the resource is still leaked.</p>
+            </div>
+        </section>
+
+        <section id="signals-solution" class="slide">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">Solution: Signals as Asynchronous Effects</h2>
+                <p class="mt-4 text-lg text-slate-600">We can model signals as a special kind of "asynchronous effect". When the OS delivers a signal, the runtime performs a `Break` effect on the currently running fiber. This gives the handler a chance to intercept the interruption cleanly.</p>
+                <div class="mt-6 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg">
+                    <p><strong class="font-semibold">The Result:</strong> Cancellation becomes a scoped, structured operation. The handler can run cleanup code and then safely terminate the computation. This avoids the pitfalls of global state and makes resource handling robust and reliable, even in the face of random interruptions.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="signals" class="slide bg-white">
+            <div class="max-w-4xl mx-auto w-full">
+                <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Scoped Cancellation</h3>
+                <p class="text-slate-600 mt-1 text-center">A signal is treated as a `Break` effect, which is caught by a handler that can clean up resources before terminating.</p>
+                <div class="code-block mt-4">(* This function makes a computation cancellable. *)
+let async_cancellable f =
+  (* 'mask' prevents async exceptions from firing here. *)
+  mask (fun () ->
+    (* 'unmask' allows them again, but only inside this block. *)
+    match unmask f with
+    | result -> Some result (* The function 'f' completed normally. *)
+    
+    (* If a signal arrives, it's performed as a 'Break' effect.
+       Instead of crashing, our handler catches it. *)
+    | effect Break k ->
+        (* We can run cleanup code here (e.g., close files). *)
+        (* Then we simply return None, abandoning the computation 'k' safely. *)
+        None
+  )</div>
+            </div>
+        </section>
+
+        <section class="slide">
+            <div class="max-w-4xl mx-auto w-full">
+                <h3 class="text-xl font-semibold text-slate-800 text-center">How It Works: Signal Visualization</h3>
+                <p class="text-slate-600 mt-1 text-center">A signal is treated as an effect, allowing a clean, scoped shutdown without leaking resources.</p>
+                 <div class="animation-container mt-4" id="anim3-container">
+                    <div class="os-thread">OS Thread / Scheduler</div>
+                    <div class="status-box" id="anim3-status">Status: Idle</div>
+                </div>
+                <div class="mt-4 text-center">
+                    <button id="anim3-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Run Signal Animation</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Results -->
+        <section id="results" class="slide bg-white">
+            <div class="max-w-3xl mx-auto">
+                <h2 class="text-3xl font-bold text-slate-900">Performance Results</h2>
+                <p class="mt-4 text-lg text-slate-600">The paper evaluates a high-performance web server (`httpaf`) built with this effect-based I/O library (`aeio`) and compares it against the highly-optimized `Async` library and Go's standard HTTP server.</p>
+                <div class="mt-6 bg-white p-6 rounded-lg border border-slate-200">
+                    <h3 class="font-semibold text-slate-900">Key Finding: Performance is Competitive</h3>
+                    <p class="text-slate-600 mt-2">The effect handler implementation performs on par with the heavily optimized, monadic `Async` library. This is a major success: it shows that we can have **both elegant, direct-style code and excellent performance.**</p>
+                    <ul class="mt-4 space-y-2 list-disc list-inside text-slate-600">
+                        <li>Under medium load, the `Effects` version was marginally better than `Async`.</li>
+                        <li>Under high load, both OCaml versions showed higher tail latencies than Go, suggesting room for GC tuning, but `Effects` and `Async` were comparable.</li>
+                        <li>There is no significant performance degradation from using the effects model.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Conclusion -->
+        <section id="conclusion" class="slide">
+            <div class="max-w-3xl mx-auto text-center">
+                <h2 class="text-3xl font-bold text-slate-900">Conclusion</h2>
+                <div class="mt-6 text-lg text-slate-600 space-y-4">
+                    <p>Effect handlers are not just a theoretical curiosity. They are a <strong class="text-slate-800">practical, performant, and elegant</strong> foundation for concurrent systems programming.</p>
+                    <p>They allow developers to write simple, direct-style code that is easy to read and reason about, while achieving performance comparable to complex, callback-based systems.</p>
+                    <p>By providing a modular way to handle complex behaviors like I/O, concurrency, and asynchronous signals, they represent a powerful step forward for systems programming languages.</p>
+                </div>
+                <div class="mt-8 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg">
+                    <p><strong class="font-semibold">The key takeaway:</strong> We don't have to choose between clean code and fast code.</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <script>
+        // --- Animation Logic ---
+
+        // Utility to sleep
+        const sleep = ms => new Promise(res => setTimeout(res, ms));
+        const IDLE_TOP_POSITION = '4.5rem'; // New position to avoid overlap
+
+        // --- Animation 1: Concurrency ---
+        const anim1Btn = document.getElementById('anim1-btn');
+        const anim1Container = document.getElementById('anim1-container');
+        
+        anim1Btn.addEventListener('click', async () => {
+            anim1Btn.disabled = true;
+            anim1Container.innerHTML = '<div class="os-thread">OS Thread / Scheduler</div><div class="status-box" id="anim1-status">Status: Idle</div>';
+            const status = anim1Container.querySelector('#anim1-status');
+            
+            const createFiber = (id, text, top, left) => {
+                const fiber = document.createElement('div');
+                fiber.id = `fiber-${id}`;
+                fiber.className = 'fiber';
+                fiber.style.top = top;
+                fiber.style.left = left;
+                fiber.innerText = text;
+                anim1Container.appendChild(fiber);
+                return fiber;
+            };
+
+            status.innerText = 'Spawning Fibers...';
+            const f1 = createFiber(1, 'Fiber 1', IDLE_TOP_POSITION, '1rem');
+            const f2 = createFiber(2, 'Fiber 2', IDLE_TOP_POSITION, 'calc(50% - 40px)');
+            await sleep(3000);
+
+            status.innerText = 'Scheduler runs Fiber 1';
+            f1.style.top = '8rem';
+            f1.style.backgroundColor = '#2563eb';
+            await sleep(3500);
+
+            status.innerText = 'Fiber 1 yields. Scheduler runs Fiber 2.';
+            f1.style.top = IDLE_TOP_POSITION;
+            f1.style.backgroundColor = '#60a5fa';
+            f2.style.top = '8rem';
+            f2.style.backgroundColor = '#2563eb';
+            await sleep(3500);
+            
+            status.innerText = 'Fiber 2 completes. Scheduler runs Fiber 1 again.';
+            f2.style.top = IDLE_TOP_POSITION;
+            f2.style.backgroundColor = '#4ade80';
+            f2.innerText = 'Fiber 2 (done)';
+            await sleep(3500);
+
+            f1.style.top = '8rem';
+            f1.style.backgroundColor = '#2563eb';
+            await sleep(3500);
+            
+            status.innerText = 'Fiber 1 completes.';
+            f1.style.top = IDLE_TOP_POSITION;
+            f1.style.backgroundColor = '#4ade80';
+            f1.innerText = 'Fiber 1 (done)';
+            
+            status.innerText = 'All fibers complete!';
+            anim1Btn.disabled = false;
+        });
+        
+        // --- Animation 2: Async I/O ---
+        const anim2Btn = document.getElementById('anim2-btn');
+        const anim2Container = document.getElementById('anim2-container');
+        
+        anim2Btn.addEventListener('click', async () => {
+            anim2Btn.disabled = true;
+            anim2Container.innerHTML = `
+                <div class="os-thread">OS Thread / Scheduler</div>
+                <div class="event-loop">I/O Event Loop (e.g., epoll, kqueue)</div>
+                <div class="status-box" id="anim2-status">Status: Idle</div>
+            `;
+            const status = anim2Container.querySelector('#anim2-status');
+
+            const createFiber = (id, text, top, left) => {
+                const fiber = document.createElement('div');
+                fiber.id = `io-fiber-${id}`;
+                fiber.className = 'fiber';
+                fiber.style.top = top;
+                fiber.style.left = left;
+                fiber.innerText = text;
+                anim2Container.appendChild(fiber);
+                return fiber;
+            };
+
+            status.innerText = 'Spawning Fiber A (needs I/O) and Fiber B';
+            const fA = createFiber('A', 'Fiber A', IDLE_TOP_POSITION, '1rem');
+            const fB = createFiber('B', 'Fiber B', IDLE_TOP_POSITION, 'calc(100% - 90px)');
+            await sleep(3000);
+
+            status.innerText = 'Scheduler runs Fiber A.';
+            fA.style.top = '8rem';
+            fA.style.backgroundColor = '#2563eb';
+            await sleep(3000);
+
+            status.innerText = 'Fiber A performs a Read effect (blocking I/O).';
+            await sleep(3000);
+            
+            status.innerText = 'Handler pauses Fiber A, sends I/O to Event Loop.';
+            fA.style.top = '13rem';
+            fA.style.left = 'calc(50% - 150px)';
+            fA.style.backgroundColor = '#f59e0b';
+            fA.innerText = 'Fiber A (reading)';
+            await sleep(3000);
+
+            status.innerText = 'Scheduler is free! It runs Fiber B.';
+            fB.style.top = '8rem';
+            fB.style.backgroundColor = '#2563eb';
+            await sleep(3500);
+
+            status.innerText = 'Fiber B completes. OS thread is not blocked.';
+            fB.style.top = IDLE_TOP_POSITION;
+            fB.style.backgroundColor = '#4ade80';
+            fB.innerText = 'Fiber B (done)';
+            await sleep(3000);
+
+            status.innerText = 'I/O Event Loop signals completion.';
+            const eventLoop = anim2Container.querySelector('.event-loop');
+            eventLoop.style.transform = 'translateX(-50%) scale(1.05)';
+            eventLoop.style.backgroundColor = '#a3e635';
+            await sleep(3000);
+            eventLoop.style.transform = 'translateX(-50%) scale(1)';
+            eventLoop.style.backgroundColor = '#facc15';
+
+            status.innerText = 'Scheduler gets notification, resumes Fiber A.';
+            fA.style.top = '8rem';
+            fA.style.left = 'calc(50% - 40px)';
+            fA.style.backgroundColor = '#2563eb';
+            fA.innerText = 'Fiber A';
+            await sleep(3000);
+
+            status.innerText = 'Fiber A completes.';
+            fA.style.top = IDLE_TOP_POSITION;
+            fA.style.backgroundColor = '#4ade80';
+            fA.innerText = 'Fiber A (done)';
+            
+            status.innerText = 'Done! No blocking.';
+            anim2Btn.disabled = false;
+        });
+
+        // --- Animation 3: Signal Handling ---
+        const anim3Btn = document.getElementById('anim3-btn');
+        const anim3Container = document.getElementById('anim3-container');
+
+        anim3Btn.addEventListener('click', async () => {
+            anim3Btn.disabled = true;
+            anim3Container.innerHTML = `
+                <div class="os-thread">OS Thread / Scheduler</div>
+                <div class="status-box" id="anim3-status">Status: Idle</div>
+            `;
+            const status = anim3Container.querySelector('#anim3-status');
+
+            const createFiber = (id, text, top, left) => {
+                const fiber = document.createElement('div');
+                fiber.id = `sig-fiber-${id}`;
+                fiber.className = 'fiber';
+                fiber.style.top = top;
+                fiber.style.left = left;
+                fiber.innerText = text;
+                anim3Container.appendChild(fiber);
+                return fiber;
+            };
+            
+            const createResource = () => {
+                const res = document.createElement('div');
+                res.id = 'resource';
+                res.className = 'fiber';
+                res.style.backgroundColor = '#a855f7';
+                res.style.top = '13rem';
+                res.style.left = '1rem';
+                res.innerText = 'File Handle';
+                anim3Container.appendChild(res);
+                return res;
+            }
+
+            status.innerText = 'Fiber C starts, opens a resource.';
+            const fC = createFiber('C', 'Fiber C', IDLE_TOP_POSITION, 'calc(50% - 40px)');
+            fC.style.top = '8rem';
+            fC.style.backgroundColor = '#2563eb';
+            const resource = createResource();
+            await sleep(3500);
+
+            status.innerText = 'Working... Ctrl-C signal received!';
+            const signal = document.createElement('div');
+            signal.className = 'signal';
+            signal.innerText = 'SIGINT (Ctrl-C)';
+            signal.style.top = '-3rem';
+            signal.style.left = 'calc(100% - 150px)';
+            anim3Container.appendChild(signal);
+            await sleep(200);
+            signal.style.top = '8rem';
+            await sleep(3000);
+
+            status.innerText = 'Signal is performed as a "Break" effect.';
+            signal.style.opacity = '0';
+            fC.style.backgroundColor = '#ef4444';
+            fC.innerText = 'Fiber C (interrupted)';
+            await sleep(3500);
+
+            status.innerText = 'Effect handler catches Break, runs cleanup code.';
+            resource.style.backgroundColor = '#9ca3af';
+            resource.innerText = 'File (Closed)';
+            resource.style.textDecoration = 'line-through';
+            await sleep(3500);
+
+            status.innerText = 'Fiber C is safely terminated.';
+            fC.style.top = IDLE_TOP_POSITION;
+            fC.style.backgroundColor = '#9ca3af';
+            fC.innerText = 'Fiber C (terminated)';
+            await sleep(3000);
+            
+            status.innerText = 'Resource closed safely. No leaks!';
+            anim3Btn.disabled = false;
+        });
+
+    </script>
+</body>
+</html>
