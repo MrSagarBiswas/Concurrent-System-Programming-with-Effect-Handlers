@@ -13,6 +13,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #f8fafc; /* slate-50 */
             overflow: hidden; /* Prevent scrolling the whole page */
+            font-size: 1.2rem; /* Increased base font size */
         }
         .slide {
             min-height: 100vh;
@@ -56,12 +57,12 @@
         .code-block {
             background-color: #1e293b; /* slate-800 */
             color: #e2e8f0; /* slate-200 */
-            padding: 1rem;
+            padding: 1.25rem;
             border-radius: 0.5rem;
             font-family: monospace;
             white-space: pre-wrap;
-            font-size: 0.875rem;
-            max-height: 60vh;
+            font-size: 0.9rem; /* Increased code font size */
+            max-height: 65vh;
             overflow-y: auto;
         }
         .status-box {
@@ -111,25 +112,35 @@
             border-radius: 1rem;
             font-size: 0.875rem;
         }
+        /* Syntax Highlighting Colors */
+        .code-keyword { color: #f97583; }
+        .code-type { color: #79c0ff; }
+        .code-constructor { color: #d2a8ff; }
+        .code-comment { color: #8b949e; }
+        .code-function { color: #d2a8ff; }
+        .code-variable { color: #ffa657; }
+        .code-operator { color: #ff7b72; }
+        .code-string { color: #a5d6ff; }
+
     </style>
 </head>
-<body class="text-slate-800">
+<body class="text-slate-700">
 
     <main>
         <!-- Title Slide -->
         <section id="title" class="slide bg-white text-center">
             <div class="max-w-4xl mx-auto">
-                <h1 class="text-4xl md:text-5xl font-bold text-slate-900 leading-tight">Concurrent System Programming with Effect Handlers</h1>
-                <p class="mt-6 text-lg text-slate-600">
+                <h1 class="text-4xl md:text-6xl font-bold text-slate-900 leading-tight">Concurrent System Programming with Effect Handlers</h1>
+                <p class="mt-6 text-xl text-slate-600">
                     Stephen Dolan<sup>1</sup>, Spiros Eliopoulos<sup>3</sup>, Daniel Hillerström<sup>2</sup>, Anil Madhavapeddy<sup>1</sup>, KC Sivaramakrishnan<sup>1</sup>, and Leo White<sup>3</sup>
                 </p>
-                <p class="mt-2 text-md text-slate-500">
+                <p class="mt-2 text-lg text-slate-500">
                     <sup>1</sup>University of Cambridge, <sup>2</sup>The University of Edinburgh, <sup>3</sup>Jane Street Group
                 </p>
                 
                 <div class="mt-12">
-                    <p class="text-xl text-slate-800">Presented by Sagar Biswas</p>
-                    <p class="mt-2 text-md text-slate-500">12/07/2025</p>
+                    <p class="text-2xl text-slate-800">Presented by Sagar Biswas</p>
+                    <p class="mt-2 text-lg text-slate-500">12/07/2025</p>
                 </div>
             </div>
         </section>
@@ -137,15 +148,15 @@
         <!-- Introduction -->
         <section id="intro" class="slide">
             <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">What are Algebraic Effect Handlers?</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">What are Algebraic Effect Handlers?</h2>
                 <p class="mt-4 text-lg text-slate-600">At their core, effect handlers are a powerful language feature for separating a program's logic from its operational details. They allow us to define custom "effects" and provide "handlers" that interpret these effects, leading to more modular and readable code.</p>
                 <div class="mt-6 grid md:grid-cols-2 gap-6">
-                    <div class="bg-white p-6 rounded-lg border border-slate-200">
-                        <h3 class="font-semibold text-slate-900">Direct-Style Code</h3>
-                        <p class="text-slate-600 mt-2">You write code that looks sequential and is easy to read, without complex callbacks or nested promises (often called "callback hell"). This makes debugging simpler, as you can rely on standard call stacks.</p>
+                    <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                        <h3 class="font-semibold text-blue-600 text-xl">Direct-Style Code</h3>
+                        <p class="text-slate-600 mt-2">You write code that looks sequential and is easy to read, without complex callbacks or nested promises. This makes debugging simpler, as you can rely on standard call stacks.</p>
                     </div>
-                    <div class="bg-white p-6 rounded-lg border border-slate-200">
-                        <h3 class="font-semibold text-slate-900">Composable & Modular</h3>
+                    <div class="bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                        <h3 class="font-semibold text-blue-600 text-xl">Composable & Modular</h3>
                         <p class="text-slate-600 mt-2">You can define your own effects and "handle" them differently depending on the context. This makes it possible to swap out a scheduler or testing framework without changing the application logic.</p>
                     </div>
                 </div>
@@ -155,111 +166,100 @@
         
         <!-- Topic 1: Concurrency -->
         <section id="concurrency-problem" class="slide bg-white">
-            <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">Problem 1: The Complexity of Concurrency</h2>
-                <p class="mt-4 text-lg text-slate-600">Traditional concurrency models often force developers into a choice between two bad options: heavyweight OS threads that don't scale, or complex, callback-based code that is hard to reason about.</p>
-                <ul class="mt-6 space-y-4 text-slate-600">
-                    <li class="flex items-start">
-                        <svg class="h-6 w-6 text-red-500 mr-3 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                        <span><strong class="text-slate-800">Callback Hell:</strong> Inverting the control flow with callbacks makes logic difficult to follow and debug. Error handling becomes a nightmare of nested `try-catch` blocks or separate error callbacks.</span>
-                    </li>
-                    <li class="flex items-start">
-                         <svg class="h-6 w-6 text-red-500 mr-3 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                        <span><strong class="text-slate-800">Monad Transformers:</strong> Solutions like monads can help, but often lead to complex type signatures and require specialized versions of common functions (`map` vs `mapM`), creating a "two-color function" problem.</span>
-                    </li>
-                </ul>
+            <div class="max-w-4xl mx-auto grid md:grid-cols-2 gap-8 items-center">
+                <div>
+                    <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Problem 1: The Complexity of Concurrency</h2>
+                    <p class="mt-4 text-lg text-slate-600">Traditional concurrency models often force developers into a choice between two bad options: heavyweight OS threads that don't scale, or complex, callback-based code that is hard to reason about.</p>
+                    <ul class="mt-6 space-y-4 text-slate-600">
+                        <li class="flex items-start">
+                            <svg class="h-6 w-6 text-red-500 mr-3 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                            <span><strong class="text-slate-800">Callback Hell:</strong> Inverting the control flow with callbacks makes logic difficult to follow and debug.</span>
+                        </li>
+                        <li class="flex items-start">
+                             <svg class="h-6 w-6 text-red-500 mr-3 flex-shrink-0 mt-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                            <span><strong class="text-slate-800">Monad Transformers:</strong> Solutions like monads can help, but often lead to complex type signatures and a "two-color function" problem.</span>
+                        </li>
+                    </ul>
+                </div>
+                <div>
+                    <img src="Pyramid_of_Doom.jpg" alt="Pyramid of Doom showing nested callbacks" class="rounded-lg shadow-lg">
+                    <p class="text-center text-sm text-slate-500 mt-2">The "Pyramid of Doom" caused by nested callbacks.</p>
+                </div>
             </div>
         </section>
         
         <section id="concurrency-solution" class="slide">
             <div class="max-w-4xl mx-auto w-full">
-                <h2 class="text-3xl font-bold text-slate-900 text-center">Solution: Concurrency as an Effect</h2>
-                <p class="mt-4 text-lg text-slate-600 text-center">Effect handlers allow us to abstract the entire mechanism of concurrency away from the application code. The application code simply states *what* it wants to do (`async`, `await`), and the scheduler handler decides *how* to do it. Below is the complete scheduler from the paper.</p>
-                <div class="code-block mt-6">(* A promise can be resolved with a value, an exception, or be waiting for a result.
-   If waiting, it holds a list of continuations (paused fibers) to resume later. *)
-type 'a promise = Done of 'a | Error of exn | Waiting of ('a, unit) continuation list
-type 'a promise_ref = 'a promise ref
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900 text-center">Solution: Concurrency as an Effect</h2>
+                <p class="mt-4 text-lg text-slate-600 text-center">We first define our effects, then provide a handler (the scheduler) to implement them.</p>
+                <div class="code-block mt-6"><pre><code><span class="code-comment">(* 1. Define effects and wrap them in helper functions *)</span>
+<span class="code-keyword">effect</span> <span class="code-constructor">Async</span> : ('a <span class="code-operator">-></span> 'b) * 'a <span class="code-operator">-></span> 'b <span class="code-type">promise</span>
+<span class="code-keyword">effect</span> <span class="code-constructor">Await</span> : 'a <span class="code-type">promise</span> <span class="code-operator">-></span> 'a
+<span class="code-keyword">effect</span> <span class="code-constructor">Yield</span> : <span class="code-type">unit</span> <span class="code-operator">-></span> <span class="code-type">unit</span>
 
-(* The main entry point. It sets up the scheduler and runs the initial computation. *)
-let run main v =
-  (* A simple FIFO queue for fibers that are ready to run. *)
-  let run_q = Queue.create () in
-  let enqueue f = Queue.push f run_q in
-  (* Pops the next fiber from the queue and runs it. *)
-  let run_next () =
-    if Queue.is_empty run_q then () (* No more work to do *)
-    else Queue.pop run_q ()
-  in
-  (* The core recursive function that drives the computation.
-     It's wrapped in an effect handler (the 'match' statement). *)
-  let rec fork : 'a 'b. 'a promise_ref -> ('b -> 'a) -> 'b -> unit =
-    fun p f v ->
-      match f v with
-      (* CASE 1: The fiber ran to completion successfully. *)
-      | v ->
-          let Waiting l = !p in (* Get the list of fibers waiting on this promise. *)
-          List.iter (fun k -> enqueue (fun () -> continue k v)) l; (* Resume them all. *)
-          p := Done v; (* Mark the promise as done. *)
-          run_next () (* Run the next fiber in the queue. *)
-      (* CASE 2: The fiber terminated with an exception. *)
-      | exception e ->
-          let Waiting l = !p in (* Get waiting fibers. *)
-          List.iter (fun k -> enqueue (fun () -> discontinue k e)) l; (* Resume them with the exception. *)
-          p := Error e; (* Mark the promise as failed. *)
-          run_next ()
-      (* CASE 3: An 'Async' effect was performed. *)
-      | effect (Async (f,v)) k ->
-          let p = ref (Waiting []) in (* Create a new promise for the new fiber. *)
-          enqueue (fun () -> continue k p); (* Immediately resume the original fiber with the new promise. *)
-          fork p f v (* Start the new fiber. *)
-      (* CASE 4: An 'Await' effect was performed. *)
-      | effect (Await p) k ->
-          (match !p with
-          | Done v -> continue k v (* Promise is already done, continue with value. *)
-          | Error e -> discontinue k e (* Promise already failed, raise the exception. *)
-          | Waiting l -> p := Waiting (k::l); run_next ()) (* Promise not ready. Pause fiber 'k' and run next. *)
-      (* CASE 5: A 'Yield' effect was performed. *)
-      | effect Yield k ->
-          enqueue (fun () -> continue k ()); (* Put the current fiber at the back of the queue. *)
-          run_next () (* Run the next fiber. *)
-  in
-  (* Kick off the whole process with the initial computation. *)
-  fork (ref (Waiting [])) main v</div>
+<span class="code-keyword">let</span> <span class="code-function">async</span> f v <span class="code-operator">=</span> <span class="code-function">perform</span> (<span class="code-constructor">Async</span> (f,v))
+<span class="code-keyword">let</span> <span class="code-function">await</span> p <span class="code-operator">=</span> <span class="code-function">perform</span> (<span class="code-constructor">Await</span> p)
+<span class="code-keyword">let</span> <span class="code-function">yield</span> () <span class="code-operator">=</span> <span class="code-function">perform</span> <span class="code-constructor">Yield</span>
+
+<span class="code-comment">(* 2. The scheduler that handles the effects *)</span>
+<span class="code-keyword">type</span> 'a <span class="code-type">promise</span> <span class="code-operator">=</span> <span class="code-constructor">Done</span> <span class="code-keyword">of</span> 'a <span class="code-operator">|</span> <span class="code-constructor">Error</span> <span class="code-keyword">of</span> <span class="code-type">exn</span> <span class="code-operator">|</span> <span class="code-constructor">Waiting</span> <span class="code-keyword">of</span> ('a, <span class="code-type">unit</span>) <span class="code-type">continuation</span> <span class="code-type">list</span>
+<span class="code-keyword">type</span> 'a <span class="code-type">promise_ref</span> <span class="code-operator">=</span> 'a <span class="code-type">promise</span> <span class="code-type">ref</span>
+
+<span class="code-keyword">let</span> <span class="code-function">run</span> main v <span class="code-operator">=</span>
+  <span class="code-keyword">let</span> run_q <span class="code-operator">=</span> <span class="code-constructor">Queue</span>.create () <span class="code-keyword">in</span>
+  <span class="code-keyword">let</span> <span class="code-function">enqueue</span> f <span class="code-operator">=</span> <span class="code-constructor">Queue</span>.push f run_q <span class="code-keyword">in</span>
+  <span class="code-keyword">let</span> <span class="code-function">run_next</span> () <span class="code-operator">=</span> <span class="code-keyword">if</span> <span class="code-constructor">Queue</span>.is_empty run_q <span class="code-keyword">then</span> () <span class="code-keyword">else</span> <span class="code-constructor">Queue</span>.pop run_q () <span class="code-keyword">in</span>
+  <span class="code-keyword">let</span> <span class="code-keyword">rec</span> <span class="code-function">fork</span> : 'a 'b. 'a <span class="code-type">promise_ref</span> <span class="code-operator">-></span> ('b <span class="code-operator">-></span> 'a) <span class="code-operator">-></span> 'b <span class="code-operator">-></span> <span class="code-type">unit</span> <span class="code-operator">=</span>
+    <span class="code-keyword">fun</span> p f v <span class="code-operator">-></span>
+      <span class="code-keyword">match</span> f v <span class="code-keyword">with</span>
+      <span class="code-operator">|</span> v <span class="code-operator">-></span> <span class="code-comment">(* CASE 1: Fiber completed successfully *)</span>
+          <span class="code-keyword">let</span> <span class="code-constructor">Waiting</span> l <span class="code-operator">=</span> <span class="code-operator">!</span>p <span class="code-keyword">in</span>
+          <span class="code-constructor">List</span>.iter (<span class="code-keyword">fun</span> k <span class="code-operator">-></span> <span class="code-function">enqueue</span> (<span class="code-keyword">fun</span> () <span class="code-operator">-></span> <span class="code-function">continue</span> k v)) l;
+          p <span class="code-operator">:=</span> <span class="code-constructor">Done</span> v;
+          <span class="code-function">run_next</span> ()
+      <span class="code-operator">|</span> <span class="code-keyword">exception</span> e <span class="code-operator">-></span> <span class="code-comment">(* CASE 2: Fiber failed *)</span>
+          <span class="code-keyword">let</span> <span class="code-constructor">Waiting</span> l <span class="code-operator">=</span> <span class="code-operator">!</span>p <span class="code-keyword">in</span>
+          <span class="code-constructor">List</span>.iter (<span class="code-keyword">fun</span> k <span class="code-operator">-></span> <span class="code-function">enqueue</span> (<span class="code-keyword">fun</span> () <span class="code-operator">-></span> <span class="code-function">discontinue</span> k e)) l;
+          p <span class="code-operator">:=</span> <span class="code-constructor">Error</span> e;
+          <span class="code-function">run_next</span> ()
+      <span class="code-operator">|</span> <span class="code-keyword">effect</span> (<span class="code-constructor">Async</span> (f,v)) k <span class="code-operator">-></span> <span class="code-comment">(* CASE 3: Handle Async effect *)</span>
+          <span class="code-keyword">let</span> p <span class="code-operator">=</span> ref (<span class="code-constructor">Waiting</span> []) <span class="code-keyword">in</span>
+          <span class="code-function">enqueue</span> (<span class="code-keyword">fun</span> () <span class="code-operator">-></span> <span class="code-function">continue</span> k p);
+          <span class="code-function">fork</span> p f v
+      <span class="code-operator">|</span> <span class="code-keyword">effect</span> (<span class="code-constructor">Await</span> p) k <span class="code-operator">-></span> <span class="code-comment">(* CASE 4: Handle Await effect *)</span>
+          (<span class="code-keyword">match</span> <span class="code-operator">!</span>p <span class="code-keyword">with</span>
+          <span class="code-operator">|</span> <span class="code-constructor">Done</span> v <span class="code-operator">-></span> <span class="code-function">continue</span> k v
+          <span class="code-operator">|</span> <span class="code-constructor">Error</span> e <span class="code-operator">-></span> <span class="code-function">discontinue</span> k e
+          <span class="code-operator">|</span> <span class="code-constructor">Waiting</span> l <span class="code-operator">-></span> p <span class="code-operator">:=</span> <span class="code-constructor">Waiting</span> (k::l); <span class="code-function">run_next</span> ())
+      <span class="code-operator">|</span> <span class="code-keyword">effect</span> <span class="code-constructor">Yield</span> k <span class="code-operator">-></span> <span class="code-comment">(* CASE 5: Handle Yield effect *)</span>
+          <span class="code-function">enqueue</span> (<span class="code-keyword">fun</span> () <span class="code-operator">-></span> <span class="code-function">continue</span> k ());
+          <span class="code-function">run_next</span> ()
+  <span class="code-keyword">in</span>
+  <span class="code-function">fork</span> (ref (<span class="code-constructor">Waiting</span> [])) main v</code></pre></div>
             </div>
         </section>
 
         <section id="concurrency" class="slide bg-white">
             <div class="max-w-4xl mx-auto w-full">
-                <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Spawning and Awaiting Fibers</h3>
-                <p class="text-slate-600 mt-1 text-center">The code looks sequential, but the scheduler will interleave the execution of `task1` and `task2`.</p>
-                <div class="code-block mt-4">(* 1. Define effects *)
-effect Async : ('a -> 'b) -> 'b promise
-effect Await : 'a promise -> 'a
-effect Yield : unit -> unit
+                <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Spawning Fibers</h3>
+                <p class="text-slate-600 mt-1 text-center">Now we can write concurrent code that looks sequential. The scheduler handles the interleaving.</p>
+                <div class="code-block mt-4"><pre><code><span class="code-comment">(* This will become Fiber 1 in the visualization *)</span>
+<span class="code-keyword">let</span> <span class="code-function">task1</span> () <span class="code-operator">=</span>
+  <span class="code-constructor">print_endline</span> <span class="code-string">"Task 1 starting"</span>;
+  <span class="code-function">yield</span> (); <span class="code-comment">(* give other tasks a chance to run *)</span>
+  <span class="code-constructor">print_endline</span> <span class="code-string">"Task 1 finishing"</span>
 
-(* 2. Wrap in helper functions *)
-let async f = perform (Async f)
-let await p = perform (Await p)
-let yield () = perform Yield
+<span class="code-comment">(* This will become Fiber 2 in the visualization *)</span>
+<span class="code-keyword">let</span> <span class="code-function">task2</span> () <span class="code-operator">=</span>
+  <span class="code-constructor">print_endline</span> <span class="code-string">"Task 2 running"</span>
 
-(* 3. Write concurrent code *)
-(* This will become Fiber 1 in the visualization *)
-let task1 () =
-  print_endline "Task 1 starting";
-  yield (); (* give other tasks a chance to run *)
-  print_endline "Task 1 finishing"
+<span class="code-keyword">let</span> <span class="code-function">main</span> () <span class="code-operator">=</span>
+  <span class="code-keyword">let</span> _promise1 <span class="code-operator">=</span> <span class="code-function">async</span> task1 () <span class="code-keyword">in</span>
+  <span class="code-keyword">let</span> _promise2 <span class="code-operator">=</span> <span class="code-function">async</span> task2 () <span class="code-keyword">in</span>
+  () <span class="code-comment">(* Fire and forget for this simple example *)</span>
 
-(* This will become Fiber 2 in the visualization *)
-let task2 () =
-  print_endline "Task 2 running"
-
-let main () =
-  let _promise1 = async task1 in
-  let _promise2 = async task2 in
-  () (* Fire and forget for this simple example *)
-
-(* 4. Run it with the scheduler *)
-let () = run main ()</div>
+<span class="code-comment">(* Run it with the scheduler *)</span>
+<span class="code-keyword">let</span> () <span class="code-operator">=</span> <span class="code-function">run</span> main ()</code></pre></div>
             </div>
         </section>
         
@@ -280,14 +280,14 @@ let () = run main ()</div>
         <!-- Topic 2: I/O -->
         <section id="io-problem" class="slide bg-white">
             <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">Problem 2: Blocking I/O</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Problem 2: Blocking I/O</h2>
                 <p class="mt-4 text-lg text-slate-600">A core challenge in concurrent programming is handling I/O operations (like reading a file or a network socket) without freezing the entire application. If a user-level thread makes a traditional, blocking system call, the entire OS thread it's running on will halt, preventing any other user-level threads from making progress. This completely undermines the goal of concurrency.</p>
             </div>
         </section>
 
         <section id="io-solution" class="slide">
             <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">Solution: Non-Blocking I/O as an Effect</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Solution: Non-Blocking I/O as an Effect</h2>
                 <p class="mt-4 text-lg text-slate-600">Instead of calling blocking OS functions directly, we `perform` an I/O effect. The scheduler's handler attempts the operation in a non-blocking way. If the OS says "not ready yet" (`EWOULDBLOCK`), the handler doesn't wait. It pauses the current fiber and schedules another one.</p>
                  <div class="mt-6 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg">
                     <p><strong class="font-semibold">The Result:</strong> The application code remains clean and direct, while the handler manages the complexity of non-blocking event loops (`epoll`, `kqueue`) under the hood. The program remains responsive and scalable.</p>
@@ -299,24 +299,24 @@ let () = run main ()</div>
             <div class="max-w-4xl mx-auto w-full">
                 <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Handling a "Blocking" Call</h3>
                 <p class="text-slate-600 mt-1 text-center">When `Accept` is performed, the handler tries the operation. If it would block, it pauses the fiber and runs something else.</p>
-                <div class="code-block mt-4">(* Define the I/O effect *)
-effect Accept : file_descr -> (file_descr * sockaddr)
+                <div class="code-block mt-4"><pre><code><span class="code-comment">(* Define the I/O effect *)</span>
+<span class="code-keyword">effect</span> <span class="code-constructor">Accept</span> : <span class="code-type">file_descr</span> <span class="code-operator">-></span> (<span class="code-type">file_descr</span> * <span class="code-type">sockaddr</span>)
 
-(* The handler logic for this effect. This would be added to our scheduler. *)
-| effect (Accept fd) k ->
-    (match Unix.accept fd with
-    | (newfd, sockaddr) ->
-        (* Success! The OS had a connection ready.
-           Continue the fiber immediately with the result. *)
-        continue k (newfd, sockaddr)
-    | exception Unix_error(EWOULDBLOCK, _, _) ->
-        (* It would block. Don't wait! *)
-        (* 1. Record that fiber 'k' is waiting on file descriptor 'fd'.
-              The event loop will watch 'fd' for readiness. *)
-        record_waiting fd k;
-        (* 2. Run the next available fiber from the queue. *)
-        run_next ()
-    )</div>
+<span class="code-comment">(* The handler logic for this effect. This would be added to our scheduler. *)</span>
+<span class="code-operator">|</span> <span class="code-keyword">effect</span> (<span class="code-constructor">Accept</span> fd) k <span class="code-operator">-></span>
+    (<span class="code-keyword">match</span> <span class="code-constructor">Unix</span>.accept fd <span class="code-keyword">with</span>
+    <span class="code-operator">|</span> (newfd, sockaddr) <span class="code-operator">-></span>
+        <span class="code-comment">(* Success! The OS had a connection ready.
+           Continue the fiber immediately with the result. *)</span>
+        <span class="code-function">continue</span> k (newfd, sockaddr)
+    <span class="code-operator">|</span> <span class="code-keyword">exception</span> <span class="code-constructor">Unix_error</span>(<span class="code-constructor">EWOULDBLOCK</span>, _, _) <span class="code-operator">-></span>
+        <span class="code-comment">(* It would block. Don't wait! *)</span>
+        <span class="code-comment">(* 1. Record that fiber 'k' is waiting on file descriptor 'fd'.
+              The event loop will watch 'fd' for readiness. *)</span>
+        <span class="code-function">record_waiting</span> fd k;
+        <span class="code-comment">(* 2. Run the next available fiber from the queue. *)</span>
+        <span class="code-function">run_next</span> ()
+    )</code></pre></div>
             </div>
         </section>
         
@@ -338,24 +338,24 @@ effect Accept : file_descr -> (file_descr * sockaddr)
         <!-- Topic 3: Signals -->
         <section id="signals-problem" class="slide bg-white">
             <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">Problem 3: Resource Safety and Asynchronous Signals</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Problem 3: Resource Safety and Asynchronous Signals</h2>
                 <p class="mt-4 text-lg text-slate-600">Ensuring resources like file handles are always closed is difficult, especially when faced with asynchronous interruptions (e.g., Ctrl-C).</p>
                 <p class="mt-6 text-slate-800 font-medium">A naive approach leaks resources on any exception:</p>
-                <div class="code-block mt-2">let f = open_in "data.csv" in
-do_stuff_with f;
-close_in f</div>
+                <div class="code-block mt-2"><pre><code><span class="code-keyword">let</span> f <span class="code-operator">=</span> <span class="code-function">open_in</span> <span class="code-string">"data.csv"</span> <span class="code-keyword">in</span>
+<span class="code-function">do_stuff_with</span> f;
+<span class="code-function">close_in</span> f</code></pre></div>
                 <p class="mt-4 text-slate-600">A `try-finally` block helps with normal exceptions:</p>
-                <div class="code-block mt-2">let f = open_in "data.csv" in
-match do_stuff_with f with
-| () -> close_in f
-| exception e -> close_in f; raise e</div>
+                <div class="code-block mt-2"><pre><code><span class="code-keyword">let</span> f <span class="code-operator">=</span> <span class="code-function">open_in</span> <span class="code-string">"data.csv"</span> <span class="code-keyword">in</span>
+<span class="code-keyword">match</span> <span class="code-function">do_stuff_with</span> f <span class="code-keyword">with</span>
+<span class="code-operator">|</span> () <span class="code-operator">-></span> <span class="code-function">close_in</span> f
+<span class="code-operator">|</span> <span class="code-keyword">exception</span> e <span class="code-operator">-></span> <span class="code-function">close_in</span> f; <span class="code-keyword">raise</span> e</code></pre></div>
                 <p class="mt-4 text-slate-600 font-semibold text-red-600">But even this is not safe! If an asynchronous signal arrives between `open_in` and the `match` statement, the cleanup code is never reached, and the resource is still leaked.</p>
             </div>
         </section>
 
         <section id="signals-solution" class="slide">
             <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">Solution: Signals as Asynchronous Effects</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Solution: Signals as Asynchronous Effects</h2>
                 <p class="mt-4 text-lg text-slate-600">We can model signals as a special kind of "asynchronous effect". When the OS delivers a signal, the runtime performs a `Break` effect on the currently running fiber. This gives the handler a chance to intercept the interruption cleanly.</p>
                 <div class="mt-6 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg">
                     <p><strong class="font-semibold">The Result:</strong> Cancellation becomes a scoped, structured operation. The handler can run cleanup code and then safely terminate the computation. This avoids the pitfalls of global state and makes resource handling robust and reliable, even in the face of random interruptions.</p>
@@ -367,21 +367,21 @@ match do_stuff_with f with
             <div class="max-w-4xl mx-auto w-full">
                 <h3 class="text-xl font-semibold text-slate-800 text-center">Code Example: Scoped Cancellation</h3>
                 <p class="text-slate-600 mt-1 text-center">A signal is treated as a `Break` effect, which is caught by a handler that can clean up resources before terminating.</p>
-                <div class="code-block mt-4">(* This function makes a computation cancellable. *)
-let async_cancellable f =
-  (* 'mask' prevents async exceptions from firing here. *)
-  mask (fun () ->
-    (* 'unmask' allows them again, but only inside this block. *)
-    match unmask f with
-    | result -> Some result (* The function 'f' completed normally. *)
+                <div class="code-block mt-4"><pre><code><span class="code-comment">(* This function makes a computation cancellable. *)</span>
+<span class="code-keyword">let</span> <span class="code-function">async_cancellable</span> f <span class="code-operator">=</span>
+  <span class="code-comment">(* 'mask' prevents async exceptions from firing here. *)</span>
+  <span class="code-function">mask</span> (<span class="code-keyword">fun</span> () <span class="code-operator">-></span>
+    <span class="code-comment">(* 'unmask' allows them again, but only inside this block. *)</span>
+    <span class="code-keyword">match</span> <span class="code-function">unmask</span> f <span class="code-keyword">with</span>
+    <span class="code-operator">|</span> result <span class="code-operator">-></span> <span class="code-constructor">Some</span> result <span class="code-comment">(* The function 'f' completed normally. *)</span>
     
-    (* If a signal arrives, it's performed as a 'Break' effect.
-       Instead of crashing, our handler catches it. *)
-    | effect Break k ->
-        (* We can run cleanup code here (e.g., close files). *)
-        (* Then we simply return None, abandoning the computation 'k' safely. *)
-        None
-  )</div>
+    <span class="code-comment">(* If a signal arrives, it's performed as a 'Break' effect.
+       Instead of crashing, our handler catches it. *)</span>
+    <span class="code-operator">|</span> <span class="code-keyword">effect</span> <span class="code-constructor">Break</span> k <span class="code-operator">-></span>
+        <span class="code-comment">(* We can run cleanup code here (e.g., close files). *)</span>
+        <span class="code-comment">(* Then we simply return None, abandoning the computation 'k' safely. *)</span>
+        <span class="code-constructor">None</span>
+  )</code></pre></div>
             </div>
         </section>
 
@@ -402,10 +402,10 @@ let async_cancellable f =
         <!-- Results -->
         <section id="results" class="slide bg-white">
             <div class="max-w-3xl mx-auto">
-                <h2 class="text-3xl font-bold text-slate-900">Performance Results</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Performance Results</h2>
                 <p class="mt-4 text-lg text-slate-600">The paper evaluates a high-performance web server (`httpaf`) built with this effect-based I/O library (`aeio`) and compares it against the highly-optimized `Async` library and Go's standard HTTP server.</p>
-                <div class="mt-6 bg-white p-6 rounded-lg border border-slate-200">
-                    <h3 class="font-semibold text-slate-900">Key Finding: Performance is Competitive</h3>
+                <div class="mt-6 bg-white p-6 rounded-lg border border-slate-200 shadow-sm">
+                    <h3 class="font-semibold text-blue-600 text-xl">Key Finding: Performance is Competitive</h3>
                     <p class="text-slate-600 mt-2">The effect handler implementation performs on par with the heavily optimized, monadic `Async` library. This is a major success: it shows that we can have **both elegant, direct-style code and excellent performance.**</p>
                     <ul class="mt-4 space-y-2 list-disc list-inside text-slate-600">
                         <li>Under medium load, the `Effects` version was marginally better than `Async`.</li>
@@ -419,14 +419,14 @@ let async_cancellable f =
         <!-- Conclusion -->
         <section id="conclusion" class="slide">
             <div class="max-w-3xl mx-auto text-center">
-                <h2 class="text-3xl font-bold text-slate-900">Conclusion</h2>
+                <h2 class="text-3xl md:text-4xl font-bold text-slate-900">Conclusion</h2>
                 <div class="mt-6 text-lg text-slate-600 space-y-4">
                     <p>Effect handlers are not just a theoretical curiosity. They are a <strong class="text-slate-800">practical, performant, and elegant</strong> foundation for concurrent systems programming.</p>
                     <p>They allow developers to write simple, direct-style code that is easy to read and reason about, while achieving performance comparable to complex, callback-based systems.</p>
                     <p>By providing a modular way to handle complex behaviors like I/O, concurrency, and asynchronous signals, they represent a powerful step forward for systems programming languages.</p>
                 </div>
-                <div class="mt-8 bg-green-50 border border-green-200 text-green-800 p-4 rounded-lg">
-                    <p><strong class="font-semibold">The key takeaway:</strong> We don't have to choose between clean code and fast code.</p>
+                <div class="mt-8 bg-green-50 border border-green-200 text-green-800 p-6 rounded-lg">
+                    <p class="font-semibold text-xl">The key takeaway: We don't have to choose between clean code and fast code.</p>
                 </div>
             </div>
         </section>
